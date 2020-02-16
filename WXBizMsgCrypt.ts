@@ -5,6 +5,12 @@ import crypto from "crypto";
  *
  */
 class PKCS7Encoder {
+  /**
+  * 删除解密后明文的补位字符
+  *
+  * @param {String} text 需要进行填充补位操作的明文
+  */
+
   static decode(text: any) {
     let pad = text[text.length - 1];
     if (pad < 1 || pad > 32) {
@@ -23,13 +29,20 @@ class PKCS7Encoder {
   encode(text: any) {
     const blockSize = 32;
     const textLength = text.length;
-    const amountToPad = blockSize - (textLength % blockSize);
+    const amountToPad = blockSize - (textLength % blockSize); // 计算需要填充的位数
     const result = Buffer.alloc(amountToPad);
     result.fill(amountToPad);
     return Buffer.concat([text, result]);
   }
 }
 
+/**
+* 微信企业平台加解密信息构造函数
+*
+* @param {String} token          公众平台上，开发者设置的Token
+* @param {String} encodingAESKey 公众平台上，开发者设置的EncodingAESKey  用于消息体的加密，长度固定为43个字符，从a-z, A-Z, 0-9共62个字符中选取，是AESKey的Base64编码。解码后即为32字节长的AESKey
+* @param {String} id         企业号的CorpId或者AppId
+*/
 export class WXBizMsgCrypt {
   public token: any;
   public iv: any;
@@ -41,7 +54,7 @@ export class WXBizMsgCrypt {
     }
 
     const encodingAESKeyP = encodingAESKey.concat("="); // EncodingAESKey + "="
-    const AESKey = Buffer.from(encodingAESKeyP, "base64");
+    const AESKey = Buffer.from(encodingAESKeyP, "base64"); // AES算法的密钥，长度为32字节。
     if (AESKey.length !== 32) {
       throw new Error("encodingAESKey invalid");
     }
@@ -60,7 +73,7 @@ export class WXBizMsgCrypt {
   */
   getSignature(timestamp: string, nonce: string, encrypt: string) {
     const shasum = crypto.createHash("sha1");
-    const arr = [this.token, timestamp, nonce, encrypt].sort(); // 校验签名  token、timestamp、nonce、msg_encrypt 这四个参数按照字典序排序
+    const arr = [this.token, timestamp, nonce, encrypt].sort(); // 校验签名  token、timestamp、nonce、msg_encrypt 这四个参数按照字典序排序 从小到大拼接成一个字符串
     shasum.update(arr.join(""));
     return shasum.digest("hex");
   }
@@ -80,7 +93,7 @@ export class WXBizMsgCrypt {
     // 去除16位随机数
     const content = deciphered.slice(16);
     const length = content.slice(0, 4).readUInt32BE(0);
-    this.id = content.slice(length + 4).toString();
+    this.id = content.slice(length + 4).toString(); // 获取id,在加密算法中使用
     return content.slice(4, length + 4).toString();
   }
 
